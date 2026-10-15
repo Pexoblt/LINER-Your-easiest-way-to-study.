@@ -1,0 +1,57 @@
+{
+  "name": "liner-desktop",
+  "version": "1.1.1",
+  "description": "LINER - bilingual study companion with animated first-run setup.",
+  "main": "main.js",
+  "author": "LINER",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "pack:win": "electron-builder --win dir",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "ro.liner.studyapp",
+    "productName": "LINER",
+    "asar": true,
+    "files": [
+      "main.js",
+      "index.html",
+      "package.json",
+      "icon.ico",
+      "icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "LINER-Setup-${version}.${ext}",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LINER",
+      "runAfterFinish": true
+    }
+  }
+}

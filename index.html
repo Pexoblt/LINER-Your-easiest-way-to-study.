@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<style>
+:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+/* Calendar */
+.calendar-panel {
+  width: min(100%, 760px);
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+  padding: clamp(20px, 5vw, 30px);
+  border-radius: 30px;
+  background: linear-gradient(150deg, var(--glass-hi), var(--glass-lo));
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.45), 0 24px 60px rgba(5,10,40,.25);
+}
+.calendar-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.calendar-head h2 { margin:0; font:600 1.2rem var(--font-num); }
+.month-nav { display:flex; align-items:center; gap:10px; }
+.month-nav button, .event-form button, .delete-event {
+  border:1px solid var(--glass-edge); color:var(--fg); cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.08));
+  border-radius:14px; padding:9px 13px; font:600 .9rem var(--font-ui);
+}
+.month-nav button { width:38px; height:38px; padding:0; font-size:1.2rem; }
+.calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
+.weekday { text-align:center; color:var(--fg-dim); font-size:.78rem; padding:5px 0; }
+.day {
+  min-height:65px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:5px; padding:9px 3px; border:1px solid rgba(255,255,255,.16);
+  border-radius:15px; background:rgba(255,255,255,.07); color:var(--fg);
+  font:500 .9rem var(--font-ui); cursor:pointer;
+}
+.day:hover, .day.selected { background:rgba(255,255,255,.22); border-color:var(--glass-edge); }
+.day.today { box-shadow:inset 0 0 0 1px var(--arc); }
+.day.outside { opacity:.35; }
+.day-dots { display:flex; gap:3px; min-height:6px; }
+.day-dots i { width:5px; height:5px; border-radius:50%; background:var(--arc); }
+.calendar-bottom { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; }
+.event-form, .event-list { min-width:0; display:grid; align-content:start; gap:11px; }
+.event-form h3, .event-list h3 { margin:0; font:600 1rem var(--font-num); }
+.event-form input, .event-form select {
+  width:100%; min-width:0; box-sizing:border-box; padding:11px 12px;
+  color:var(--fg); background:rgba(255,255,255,.12); border:1px solid var(--glass-edge);
+  border-radius:13px; font: .9rem var(--font-ui);
+}
+.event-form input::placeholder { color:var(--fg-dim); }
+.event-form select option { color:#172044; }
+.event-form button { background:linear-gradient(180deg,color-mix(in srgb,var(--arc) 65%,transparent),color-mix(in srgb,var(--arc) 30%,transparent)); }
+.event-item { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border:1px solid rgba(255,255,255,.18); border-radius:13px; background:rgba(255,255,255,.08); }
+.event-item strong { display:block; font-size:.9rem; overflow-wrap:anywhere; }
+.event-item small { color:var(--fg-dim); }
+.delete-event { padding:6px 9px; font-size:.75rem; flex:none; }
+.empty-events { color:var(--fg-dim); font-size:.88rem; margin:0; }
+@media(max-width:560px) {
+  .calendar-bottom { grid-template-columns:1fr; }
+  .day { min-height:52px; border-radius:11px; }
+  .calendar-grid { gap:4px; }
+}
+
+/* Liquid-glass finish for the entire calendar */
+.calendar-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 8% 0%, rgba(255,255,255,.27), transparent 55%),
+    radial-gradient(85% 100% at 100% 100%, color-mix(in srgb, var(--arc) 25%, transparent), transparent 65%),
+    linear-gradient(145deg, rgba(255,255,255,.23), rgba(255,255,255,.075) 48%, rgba(255,255,255,.11));
+  -webkit-backdrop-filter: blur(34px) saturate(185%);
+  backdrop-filter: blur(34px) saturate(185%);
+  border: 1px solid rgba(255,255,255,.48);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.62),
+    inset 0 -1px 0 rgba(255,255,255,.12),
+    inset 0 0 35px rgba(255,255,255,.055),
+    0 28px 70px rgba(5,10,40,.30);
+}
+.calendar-panel::before {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:-75px; left:8%;
+  width:48%; height:115px;
+  border-radius:50%;
+  background:rgba(255,255,255,.20);
+  filter:blur(28px);
+  pointer-events:none;
+}
+.calendar-head, .calendar-grid, .calendar-bottom { position:relative; }
+.month-nav strong {
+  min-width:125px;
+  text-align:center;
+  font:600 .94rem var(--font-num);
+  text-shadow:0 1px 10px rgba(255,255,255,.18);
+}
+.month-nav button, .event-form button, .delete-event {
+  -webkit-backdrop-filter:blur(18px) saturate(180%);
+  backdrop-filter:blur(18px) saturate(180%);
+  background:linear-gradient(155deg,rgba(255,255,255,.30),rgba(255,255,255,.075));
+  border-color:rgba(255,255,255,.48);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.58), inset 0 -5px 10px rgba(255,255,255,.07), 0 7px 18px rgba(8,15,55,.16);
+  transition:transform .16s ease, filter .16s ease, box-shadow .16s ease;
+}
+.month-nav button:hover, .event-form button:hover, .delete-event:hover {
+  filter:brightness(1.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.68), 0 0 0 1px rgba(255,255,255,.18), 0 9px 22px rgba(8,15,55,.20);
+}
+.month-nav button:active, .event-form button:active, .delete-event:active { transform:scale(.97); }
+.day {
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(145deg,rgba(255,255,255,.17),rgba(255,255,255,.045));
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 5px 13px rgba(6,12,48,.08);
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+  transition:transform .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.day:hover { transform:translateY(-2px); }
+.day.selected {
+  background:linear-gradient(145deg,color-mix(in srgb,var(--arc) 68%,rgba(255,255,255,.42)),color-mix(in srgb,var(--arc) 35%,rgba(255,255,255,.12)));
+  border-color:rgba(255,255,255,.82);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.72), 0 0 0 2px color-mix(in srgb,var(--arc) 35%,transparent), 0 8px 20px rgba(5,10,40,.20);
+}
+.day.today:not(.selected) { box-shadow:inset 0 0 0 1px var(--arc), inset 0 1px 0 rgba(255,255,255,.30); }
+.weekday { font-weight:600; letter-spacing:.04em; text-shadow:0 1px 8px rgba(255,255,255,.14); }
+.event-form, .event-list {
+  padding:16px;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:22px;
+  background:linear-gradient(150deg,rgba(255,255,255,.13),rgba(255,255,255,.035));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 10px 25px rgba(6,12,48,.08);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  backdrop-filter:blur(18px) saturate(150%);
+}
+.event-form input, .event-form select {
+  min-height:44px;
+  padding:11px 14px;
+  color:var(--fg);
+  color-scheme:dark;
+  background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.075));
+  border:1px solid rgba(255,255,255,.46);
+  border-radius:15px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.38), inset 0 -5px 12px rgba(255,255,255,.035), 0 6px 15px rgba(5,10,40,.10);
+  outline:none;
+  -webkit-backdrop-filter:blur(18px) saturate(170%);
+  backdrop-filter:blur(18px) saturate(170%);
+  transition:border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.event-form input:hover, .event-form select:hover { background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.09)); }
+.event-form input:focus, .event-form select:focus {
+  border-color:rgba(255,255,255,.85);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 3px color-mix(in srgb,var(--arc) 35%,transparent), 0 8px 20px rgba(5,10,40,.13);
+}
+.event-form input::placeholder { color:rgba(255,255,255,.78); }
+.event-form input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor:pointer;
+  filter:invert(1) brightness(1.8);
+  opacity:.9;
+}
+.event-form select {
+  appearance:none;
+  cursor:pointer;
+  padding-right:42px;
+  background-image:
+    linear-gradient(45deg,transparent 50%,rgba(255,255,255,.95) 50%),
+    linear-gradient(135deg,rgba(255,255,255,.95) 50%,transparent 50%),
+    linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.075));
+  background-position:calc(100% - 19px) 19px, calc(100% - 13px) 19px, 0 0;
+  background-size:6px 6px, 6px 6px, 100% 100%;
+  background-repeat:no-repeat;
+}
+.event-form select option { color:#fff; background:#263778; }
+.event-form button {
+  min-height:44px;
+  border-radius:15px;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--arc) 72%,rgba(255,255,255,.35)),color-mix(in srgb,var(--arc) 40%,rgba(255,255,255,.10)));
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.62), inset 0 -7px 12px rgba(255,255,255,.08), 0 9px 20px rgba(5,10,40,.16);
+}
+.event-item {
+  background:linear-gradient(145deg,rgba(255,255,255,.20),rgba(255,255,255,.065));
+  border-color:rgba(255,255,255,.32);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30), 0 6px 15px rgba(5,10,40,.10);
+  -webkit-backdrop-filter:blur(14px);
+  backdrop-filter:blur(14px);
+}
+.delete-event { border-radius:11px; }
+.empty-events { line-height:1.55; }
+.day:focus-visible, .month-nav button:focus-visible, .event-form button:focus-visible, .delete-event:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+@media(max-width:560px) {
+  .event-form, .event-list { padding:14px; border-radius:18px; }
+  .month-nav { gap:6px; }
+  .month-nav strong { min-width:105px; font-size:.82rem; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .day, .month-nav button, .event-form input, .event-form select, .event-form button { transition:none; }
+}
+
+
+
+/* Language selector */
+.language-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-radius:18px; background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.05)); border:1px solid var(--glass-edge); box-shadow:inset 0 1px 0 rgba(255,255,255,.4); }
+.language-row label { font-size:.88rem; font-weight:500; }
+.language-row select { min-width:142px; padding:9px 12px; color:var(--fg); color-scheme:dark; background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.075)); border:1px solid rgba(255,255,255,.46); border-radius:13px; font:500 .88rem var(--font-ui); cursor:pointer; }
+.language-row option { color:#fff; background:#263778; }
+
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@300;400;600&display=swap">
+<style>
+/* Layout: un singur panou de sticlă centrat; inelul timerului este o lentilă de sticlă în mijlocul lui. */
+:root {
+  --bg-base: #1d2b6e;
+  --blob1: #6a7bff;
+  --blob2: #b05cff;
+  --blob3: #3fd0d8;
+  --arc: #5b8cff;
+  --fg: #ffffff;
+  --fg-dim: rgba(255, 255, 255, 0.74);
+  --glass-hi: rgba(255, 255, 255, 0.26);
+  --glass-lo: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.4);
+  --track: rgba(255, 255, 255, 0.2);
+  --warn: #ff8a7a;
+  --x1: 12%; --y1: 8%;
+  --x2: 92%; --y2: 22%;
+  --x3: 68%; --y3: 100%;
+  --cx: 50%; --cy: 50%;
+  --ga: 0;
+  --start: #4e73df;
+  --pause: #f6c926;
+  --reset: #e74a3b;
+  --font-ui: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "Sora", "DM Sans", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html { height: 100%; }
+
+body {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background:
+    radial-gradient(260px 260px at var(--cx) var(--cy), rgba(255, 255, 255, calc(0.3 * var(--ga))) 0, transparent 70%),
+    radial-gradient(60% 50% at var(--x1) var(--y1), var(--blob1) 0, transparent 70%),
+    radial-gradient(55% 55% at var(--x2) var(--y2), var(--blob2) 0, transparent 70%),
+    radial-gradient(65% 60% at var(--x3) var(--y3), var(--blob3) 0, transparent 72%),
+    var(--bg-base);
+  background-attachment: fixed;
+}
+
+.panel {
+  width: min(100%, 520px);
+  min-width: 0;
+  display: grid;
+  gap: 26px;
+  padding: clamp(20px, 5vw, 34px);
+  border-radius: 36px;
+  background: linear-gradient(150deg, var(--glass-hi), var(--glass-lo));
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  border: 1px solid var(--glass-edge);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    0 30px 70px rgba(5, 10, 40, 0.35);
+}
+
+header { text-align: center; display: grid; gap: 4px; }
+h1 {
+  margin: 0;
+  font-family: var(--font-num);
+  font-weight: 600;
+  font-size: clamp(1.15rem, 4.5vw, 1.4rem);
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+#sub { margin: 0; color: var(--fg-dim); font-size: 0.9rem; }
+
+/* Lentila de sticlă cu inelul de progres */
+.lens {
+  position: relative;
+  width: min(100%, 300px);
+  margin-inline: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  container-type: inline-size;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.05) 46%, rgba(255, 255, 255, 0.12));
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-edge);
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -14px 30px rgba(255, 255, 255, 0.08),
+    0 22px 44px rgba(5, 10, 40, 0.3);
+}
+.lens::after {
+  content: "";
+  position: absolute;
+  top: 6%;
+  left: 18%;
+  width: 36%;
+  height: 14%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  transform: rotate(-24deg);
+  pointer-events: none;
+}
+.lens svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.track { fill: none; stroke: var(--track); stroke-width: 10; }
+#ring {
+  fill: none;
+  stroke: var(--arc);
+  stroke-width: 10;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px var(--arc));
+  transition: stroke-dashoffset 0.22s linear, opacity 0.2s;
+}
+.readout-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+}
+#readout {
+  font-family: var(--font-num);
+  font-weight: 400;
+  font-size: 21cqw;
+  line-height: 1;
+  white-space: nowrap;
+}
+#readout.long { font-size: 16.5cqw; }
+#readout .d { display: inline-block; width: 0.64em; text-align: center; }
+#readout .c { display: inline-block; width: 0.3em; text-align: center; opacity: 0.8; }
+#status { font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-dim); }
+#status.warn { color: var(--warn); font-weight: 700; }
+
+/* Butoane */
+.controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.glass-btn {
+  appearance: none;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  min-height: 52px;
+  padding: 0 12px;
+  font: 700 0.85rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  color: var(--fg);
+  cursor: pointer;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 62%, transparent), color-mix(in srgb, var(--tint) 30%, transparent));
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -8px 14px rgba(255, 255, 255, 0.08), 0 10px 22px rgba(5, 10, 40, 0.22);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.glass-btn:hover { filter: brightness(1.12); }
+.glass-btn:active { transform: translateY(1px) scale(0.985); }
+.glass-btn.on { box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.7), 0 0 0 2px var(--glass-edge), 0 10px 22px rgba(5, 10, 40, 0.22); }
+.glass-btn:focus-visible, input:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+#bStart { --tint: var(--start); }
+#bPause { --tint: var(--pause); }
+#bReset { --tint: var(--reset); }
+
+/* Setări */
+.settings { display: grid; gap: 14px; }
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.row label, .row .lab { font-size: 0.9rem; font-weight: 500; white-space: nowrap; }
+#durVal { min-width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.9rem; }
+
+input[type="range"] {
+  --pct: 20%;
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--arc) var(--pct), var(--track) var(--pct));
+}
+input[type="range"]::-moz-range-track { height: 8px; border-radius: 99px; background: var(--track); }
+input[type="range"]::-moz-range-progress { height: 8px; border-radius: 99px; background: var(--arc); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(255, 255, 255, 0.6));
+  box-shadow: 0 4px 10px rgba(5, 10, 40, 0.35);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(255, 255, 255, 0.6));
+  box-shadow: 0 4px 10px rgba(5, 10, 40, 0.35);
+}
+
+.colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.colors .row { justify-content: space-between; padding: 10px 14px; }
+input[type="color"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; }
+
+@media (max-width: 420px) {
+  .colors { grid-template-columns: 1fr; }
+  .row label, .row .lab { font-size: 0.85rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ring, .glass-btn { transition: none; }
+}
+</style>
+<style>body { margin: 0; }</style>
+<style>
+
+/* First-run onboarding — smooth, glassy, and responsive */
+.profile-greeting { margin:7px 0 0; color:rgba(255,255,255,.78); font:500 .86rem var(--font-ui); letter-spacing:.015em; }
+html.onboarding-open, html.onboarding-open body { overflow: hidden; }
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
+  padding: 24px; overflow: auto; isolation: isolate;
+  background:
+    radial-gradient(65% 65% at 12% 12%, rgba(91,140,255,.38), transparent 70%),
+    radial-gradient(60% 65% at 92% 88%, rgba(176,92,255,.30), transparent 70%),
+    rgba(8,14,48,.76);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+  opacity: 1; visibility: visible;
+  transition: opacity .48s cubic-bezier(.2,.8,.2,1), visibility .48s;
+}
+.onboarding-overlay.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
+.onboarding-overlay::before, .onboarding-overlay::after {
+  content:""; position:absolute; z-index:-1; width:36vw; height:36vw; min-width:260px; min-height:260px;
+  border-radius:50%; filter:blur(55px); opacity:.45; pointer-events:none;
+  animation: linerOrbFloat 14s ease-in-out infinite alternate;
+}
+.onboarding-overlay::before { left:-8vw; top:-10vw; background:rgba(64,160,255,.58); }
+.onboarding-overlay::after { right:-10vw; bottom:-12vw; background:rgba(176,92,255,.54); animation-delay:-6s; }
+@keyframes linerOrbFloat { from { transform:translate3d(0,0,0) scale(.94); } to { transform:translate3d(5vw,4vh,0) scale(1.08); } }
+.onboarding-card {
+  width:min(100%, 560px); position:relative; box-sizing:border-box; padding:clamp(24px,5vw,42px);
+  border-radius:30px; color:#fff;
+  background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.085) 52%,rgba(255,255,255,.12));
+  border:1px solid rgba(255,255,255,.48);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.62),inset 0 -1px 0 rgba(255,255,255,.13),0 30px 90px rgba(0,0,0,.32);
+  -webkit-backdrop-filter:blur(32px) saturate(180%); backdrop-filter:blur(32px) saturate(180%);
+  overflow:hidden;
+}
+.onboarding-card::before { content:""; position:absolute; inset:-90px 18% auto; height:130px; border-radius:50%; background:rgba(255,255,255,.18); filter:blur(35px); pointer-events:none; }
+.onboarding-top, .onboarding-content, .onboarding-actions, .onboarding-credits { position:relative; }
+.onboarding-top { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:30px; }
+.onboarding-brand { display:flex; align-items:center; gap:12px; font:600 .92rem var(--font-ui); letter-spacing:.16em; text-transform:uppercase; }
+.onboarding-brand img { width:38px; height:38px; border-radius:12px; box-shadow:0 7px 20px rgba(0,0,0,.18); }
+.onboarding-counter { color:rgba(255,255,255,.72); font:500 .78rem var(--font-ui); letter-spacing:.08em; }
+.onboarding-progress { height:5px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.15); margin:-14px 0 32px; }
+.onboarding-progress-fill { height:100%; width:33.333%; border-radius:inherit; background:linear-gradient(90deg,#75d7ff,#9d8cff); box-shadow:0 0 16px rgba(117,215,255,.56); transition:width .55s cubic-bezier(.2,.8,.2,1); }
+.onboarding-step { display:none; min-height:275px; }
+.onboarding-step.is-active { display:block; }
+.onboarding-step.is-entering { animation:linerStepIn .48s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes linerStepIn { from { opacity:0; transform:translate3d(22px,8px,0); filter:blur(5px); } to { opacity:1; transform:translate3d(0,0,0); filter:blur(0); } }
+.onboarding-kicker { margin:0 0 12px; color:#aee9ff; font:600 .72rem var(--font-ui); letter-spacing:.19em; text-transform:uppercase; }
+.onboarding-step h1 { margin:0; max-width:440px; font:600 clamp(1.85rem,5vw,2.55rem)/1.12 var(--font-num); letter-spacing:-.045em; }
+.onboarding-description { max-width:420px; margin:14px 0 26px; color:rgba(255,255,255,.76); font:400 .98rem/1.6 var(--font-ui); }
+.onboarding-input {
+  width:100%; height:58px; box-sizing:border-box; padding:0 18px; color:#fff;
+  border:1px solid rgba(255,255,255,.40); border-radius:17px; outline:none;
+  background:linear-gradient(145deg,rgba(255,255,255,.19),rgba(255,255,255,.075));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 8px 22px rgba(0,0,0,.09);
+  font:500 1rem var(--font-ui); transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.onboarding-input::placeholder { color:rgba(255,255,255,.55); }
+.onboarding-input:focus { border-color:rgba(183,234,255,.95); background:rgba(255,255,255,.16); box-shadow:0 0 0 4px rgba(117,215,255,.16),inset 0 1px 0 rgba(255,255,255,.4); }
+.onboarding-error { min-height:20px; margin:9px 2px 0; color:#ffd0d0; font-size:.82rem; }
+.onboarding-language-options { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:22px; }
+.onboarding-language {
+  display:flex; align-items:center; gap:12px; min-height:76px; padding:14px 16px; cursor:pointer; color:#fff;
+  border:1px solid rgba(255,255,255,.30); border-radius:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.055));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24); text-align:left;
+  transition:transform .22s cubic-bezier(.2,.8,.2,1),border-color .22s,background .22s,box-shadow .22s;
+}
+.onboarding-language:hover { transform:translateY(-2px); background:rgba(255,255,255,.16); }
+.onboarding-language[aria-pressed="true"] { border-color:rgba(174,233,255,.95); background:linear-gradient(145deg,rgba(91,140,255,.36),rgba(117,215,255,.16)); box-shadow:0 0 0 2px rgba(117,215,255,.17),inset 0 1px 0 rgba(255,255,255,.5),0 10px 26px rgba(13,40,100,.18); }
+.onboarding-language .flag { font-size:1.7rem; }
+.onboarding-language strong { font:600 .98rem var(--font-ui); }
+.onboarding-language .check { margin-left:auto; opacity:0; transform:scale(.7); transition:opacity .2s,transform .2s; }
+.onboarding-language[aria-pressed="true"] .check { opacity:1; transform:scale(1); }
+.onboarding-age-wrap { position:relative; max-width:240px; }
+.onboarding-age-wrap .onboarding-input { padding-right:64px; font-size:1.3rem; font-variant-numeric:tabular-nums; }
+.onboarding-age-suffix { position:absolute; right:18px; top:50%; transform:translateY(-50%); color:rgba(255,255,255,.62); font-size:.88rem; pointer-events:none; }
+.onboarding-privacy { margin:12px 0 0; color:rgba(255,255,255,.57); font-size:.78rem; line-height:1.5; }
+.onboarding-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:28px; }
+.onboarding-button { min-height:48px; border:1px solid rgba(255,255,255,.40); border-radius:15px; padding:0 20px; color:#fff; cursor:pointer; font:600 .9rem var(--font-ui); transition:transform .18s,filter .18s,background .18s,opacity .18s; }
+.onboarding-button:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.onboarding-button:active { transform:scale(.98); }
+.onboarding-button:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+.onboarding-button.primary { margin-left:auto; background:linear-gradient(120deg,#4e8eff,#796cff 58%,#9a72ed); border-color:rgba(255,255,255,.55); box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 9px 24px rgba(55,73,190,.32); }
+.onboarding-button.secondary { background:rgba(255,255,255,.07); color:rgba(255,255,255,.82); }
+.onboarding-button[hidden] { display:none; }
+.onboarding-credits { margin-top:26px; padding-top:18px; border-top:1px solid rgba(255,255,255,.16); text-align:center; color:rgba(255,255,255,.52); font:500 .72rem var(--font-ui); letter-spacing:.035em; }
+.onboarding-credits strong { color:rgba(255,255,255,.84); font-weight:600; }
+.app-credits { width:min(100%,760px); box-sizing:border-box; margin:4px auto 26px; padding:4px 12px 0; text-align:center; color:rgba(255,255,255,.54); font:500 .72rem var(--font-ui); letter-spacing:.06em; }
+.app-credits strong { color:rgba(255,255,255,.82); font-weight:600; }
+@media(max-width:520px) {
+  .onboarding-overlay { padding:14px; }
+  .onboarding-card { border-radius:24px; padding:24px 20px; }
+  .onboarding-top { margin-bottom:24px; }
+  .onboarding-step { min-height:290px; }
+  .onboarding-language-options { grid-template-columns:1fr; }
+  .onboarding-language { min-height:62px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .onboarding-overlay,.onboarding-overlay::before,.onboarding-overlay::after,.onboarding-progress-fill,.onboarding-step.is-entering,.onboarding-language,.onboarding-language .check,.onboarding-button { animation:none!important; transition:none!important; }
+}
+
+</style>
+</head>
+<body>
+
+<main class="panel">
+  <header>
+    <h1 data-i18n="appTitle">Timer de Concentrare</h1>
+    <p id="sub">Sesiune de 30 min</p>
+  </header>
+
+  <div class="language-row">
+    <label for="languageSelect" data-i18n="languageLabel">Limbă</label>
+    <select id="languageSelect" aria-label="Limba aplicației" data-i18n-aria="languageAria">
+      <option value="ro">🇷🇴 Română</option>
+      <option value="en">🇬🇧 English</option>
+    </select>
+  </div>
+
+  <div class="lens">
+    <svg viewBox="0 0 300 300" aria-hidden="true">
+      <circle class="track" cx="150" cy="150" r="128"></circle>
+      <circle id="ring" cx="150" cy="150" r="128"></circle>
+    </svg>
+    <div class="readout-wrap">
+      <div id="readout" role="timer" aria-label="Timp rămas">30:00</div>
+      <div id="status" aria-live="polite">Pregătit</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="glass-btn" id="bStart" type="button">START</button>
+    <button class="glass-btn" id="bPause" type="button" data-i18n="pause">PAUZĂ</button>
+    <button class="glass-btn" id="bReset" type="button">RESET</button>
+  </div>
+
+  <div class="settings">
+    <div class="row">
+      <label for="dur" data-i18n="duration">Durată</label>
+      <input id="dur" type="range" min="5" max="120" step="5" value="30">
+      <span id="durVal">30 min</span>
+    </div>
+    <div class="colors">
+      <div class="row">
+        <label for="bgColor" data-i18n="backgroundColor">Culoare fundal</label>
+        <input id="bgColor" type="color" value="#1d2b6e">
+      </div>
+      <div class="row">
+        <label for="arcColor" data-i18n="arcColor">Culoare arc</label>
+        <input id="arcColor" type="color" value="#5b8cff">
+      </div>
+    </div>
+  </div>
+</main>
+
+<section class="calendar-panel" aria-label="Calendar personal" data-i18n-aria="calendarAria">
+  <header class="calendar-head">
+    <h2 data-i18n="calendarTitle">Calendarul meu</h2>
+    <div class="month-nav">
+      <button type="button" id="prevMonth" aria-label="Luna precedentă" data-i18n-aria="prevMonth">‹</button>
+      <strong id="monthLabel"></strong>
+      <button type="button" id="nextMonth" aria-label="Luna următoare" data-i18n-aria="nextMonth">›</button>
+    </div>
+  </header>
+  <div class="calendar-grid" id="calendarGrid" aria-label="Zilele lunii" data-i18n-aria="daysOfMonth"></div>
+  <div class="calendar-bottom">
+    <form class="event-form" id="eventForm">
+      <h3 data-i18n="addEventTitle">Adaugă un eveniment</h3>
+      <input id="eventTitle" type="text" maxlength="80" placeholder="Ex.: Test la matematică" data-i18n-placeholder="eventPlaceholder" required>
+      <input id="eventDate" type="date" required>
+      <select id="eventType" aria-label="Tipul evenimentului" data-i18n-aria="eventTypeAria">
+        <option value="Test" data-i18n="typeTest">Test</option>
+        <option value="Ascultare" data-i18n="typeOral">Ascultare</option>
+        <option value="Temă" data-i18n="typeHomework">Temă</option>
+        <option value="Proiect" data-i18n="typeProject">Proiect</option>
+        <option value="Altele" data-i18n="typeOther">Altele</option>
+      </select>
+      <button type="submit" data-i18n="addToCalendar">+ Adaugă în calendar</button>
+    </form>
+    <div class="event-list">
+      <h3 id="selectedDateLabel">Evenimente</h3>
+      <div id="eventsForDay"><p class="empty-events" data-i18n="selectDay">Selectează o zi pentru a vedea evenimentele.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer class="app-credits">Created by <strong>pexoblt</strong> &amp; <strong>ASTER</strong></footer>
+
+
+<div class="onboarding-overlay" id="onboardingOverlay" role="dialog" aria-modal="true" aria-labelledby="onboardingLanguageTitle">
+  <div class="onboarding-card">
+    <div class="onboarding-top">
+      <div class="onboarding-brand"><img src="icon.png" alt=""><span>LINER</span></div>
+      <div class="onboarding-counter" id="onboardingCounter">01 / 03</div>
+    </div>
+    <div class="onboarding-progress" aria-hidden="true"><div class="onboarding-progress-fill" id="onboardingProgress"></div></div>
+
+    <section class="onboarding-step is-active is-entering" data-onboarding-step="0" aria-labelledby="onboardingLanguageTitle">
+      <p class="onboarding-kicker" data-ob="kickerLanguage">PASUL 01 · LIMBĂ</p>
+      <h1 id="onboardingLanguageTitle" data-ob="languageTitle">În ce limbă preferi LINER?</h1>
+      <p class="onboarding-description" data-ob="languageDesc">Poți schimba limba oricând și din setările aplicației.</p>
+      <div class="onboarding-language-options" role="group" aria-label="Choose language">
+        <button class="onboarding-language" type="button" data-language-choice="ro" aria-pressed="true"><span class="flag">🇷🇴</span><strong>Română</strong><span class="check" aria-hidden="true">✓</span></button>
+        <button class="onboarding-language" type="button" data-language-choice="en" aria-pressed="false"><span class="flag">🇬🇧</span><strong>English</strong><span class="check" aria-hidden="true">✓</span></button>
+      </div>
+    </section>
+    <section class="onboarding-step" data-onboarding-step="1" aria-labelledby="onboardingTitle">
+      <p class="onboarding-kicker" data-ob="kickerName">PASUL 02 · NUME</p>
+      <h1 id="onboardingTitle" data-ob="nameTitle">Începem cu numele tău.</h1>
+      <p class="onboarding-description" data-ob="nameDesc">Cum ai vrea să-ți spunem? Vom folosi numele tău pentru un mic mesaj de bun venit.</p>
+      <input class="onboarding-input" id="onboardingName" type="text" maxlength="32" autocomplete="given-name" placeholder="Numele tău" aria-label="Numele tău">
+      <p class="onboarding-error" id="onboardingNameError" aria-live="polite"></p>
+    </section>
+    <section class="onboarding-step" data-onboarding-step="2" aria-labelledby="onboardingAgeTitle">
+      <p class="onboarding-kicker" data-ob="kickerAge">PASUL 03 · DESPRE TINE</p>
+      <h1 id="onboardingAgeTitle" data-ob="ageTitle">Câți ani ai?</h1>
+      <p class="onboarding-description" data-ob="ageDesc">Doar ca să-ți configurăm un spațiu de studiu potrivit.</p>
+      <div class="onboarding-age-wrap">
+        <input class="onboarding-input" id="onboardingAge" type="number" min="5" max="100" step="1" inputmode="numeric" placeholder="15" aria-label="Vârsta ta">
+        <span class="onboarding-age-suffix" data-ob="years">ani</span>
+      </div>
+      <p class="onboarding-error" id="onboardingAgeError" aria-live="polite"></p>
+      <p class="onboarding-privacy" data-ob="privacy">Vârsta și numele rămân salvate local pe acest dispozitiv.</p>
+    </section>
+    <div class="onboarding-actions">
+      <button class="onboarding-button secondary" id="onboardingBack" type="button" hidden data-ob="back">Înapoi</button>
+      <button class="onboarding-button primary" id="onboardingNext" type="button" data-ob="continue">Continuă <span aria-hidden="true">→</span></button>
+    </div>
+    <div class="onboarding-credits">Created by <strong>pexoblt</strong> &amp; <strong>ASTER</strong></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var dictionaries = {
+    ro: {
+      appTitle:'Timer de concentrare', languageLabel:'Limbă', languageAria:'Limba aplicației', duration:'Durată', backgroundColor:'Culoare fundal', arcColor:'Culoare arc',
+      pause:'PAUZĂ', calendarTitle:'Calendarul meu', calendarAria:'Calendar personal', prevMonth:'Luna precedentă', nextMonth:'Luna următoare', daysOfMonth:'Zilele lunii',
+      addEventTitle:'Adaugă un eveniment', eventPlaceholder:'Ex.: Test la matematică', eventTypeAria:'Tipul evenimentului', typeTest:'Test', typeOral:'Ascultare', typeHomework:'Temă', typeProject:'Proiect', typeOther:'Altele', addToCalendar:'+ Adaugă în calendar',
+      selectDay:'Selectează o zi pentru a vedea evenimentele.', noEvents:'Nu ai evenimente în această zi.', delete:'Șterge', events:'Evenimente', event:'Eveniment', oneEvent:'1 eveniment',
+      ready:'Pregătit', running:'În desfășurare', paused:'Pauză', finished:'Timp expirat!', session:'Sesiune de {n} min', minute:'min', eventCount:'{n} evenimente',
+      months:['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'], weekdays:['Lu','Ma','Mi','Jo','Vi','Sâ','Du'],
+      fullDate:'ro-RO'
+    },
+    en: {
+      appTitle:'Focus Timer', languageLabel:'Language', languageAria:'Application language', duration:'Duration', backgroundColor:'Background color', arcColor:'Progress color',
+      pause:'PAUSE', calendarTitle:'My calendar', calendarAria:'Personal calendar', prevMonth:'Previous month', nextMonth:'Next month', daysOfMonth:'Days of the month',
+      addEventTitle:'Add an event', eventPlaceholder:'E.g. Math test', eventTypeAria:'Event type', typeTest:'Test', typeOral:'Oral test', typeHomework:'Homework', typeProject:'Project', typeOther:'Other', addToCalendar:'+ Add to calendar',
+      selectDay:'Select a day to see its events.', noEvents:'No events on this day.', delete:'Delete', events:'Events', event:'Event', oneEvent:'1 event',
+      ready:'Ready', running:'In progress', paused:'Paused', finished:'Time is up!', session:'{n}-minute session', minute:'min', eventCount:'{n} events',
+      months:['January','February','March','April','May','June','July','August','September','October','November','December'], weekdays:['Mo','Tu','We','Th','Fr','Sa','Su'],
+      fullDate:'en-GB'
+    }
+  };
+  var language = 'ro';
+  try { language = localStorage.getItem('liner-language') === 'en' ? 'en' : 'ro'; } catch (_) {}
+  function t(key, vars) {
+    var value = dictionaries[language][key];
+    if (value == null) value = dictionaries.ro[key] || key;
+    if (typeof value === 'string' && vars) Object.keys(vars).forEach(function(k){ value = value.replace('{' + k + '}', vars[k]); });
+    return value;
+  }
+  function applyStatic() {
+    document.documentElement.lang = language;
+    document.title = language === 'en' ? 'LINER — Focus Timer' : 'LINER — Timer de concentrare';
+    document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(function(el){ el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){ el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+    var select = document.getElementById('languageSelect');
+    if (select) select.value = language;
+    document.dispatchEvent(new CustomEvent('liner-language-change', {detail:{language:language}}));
+  }
+  function setLanguage(next) {
+    language = next === 'en' ? 'en' : 'ro';
+    try { localStorage.setItem('liner-language', language); } catch (_) {}
+    applyStatic();
+  }
+  window.LINER_I18N = { t:t, getLanguage:function(){return language;}, setLanguage:setLanguage, applyStatic:applyStatic };
+  document.addEventListener('DOMContentLoaded', function(){
+    var select = document.getElementById('languageSelect');
+    if (select) select.addEventListener('change', function(){ setLanguage(select.value); });
+    applyStatic();
+  });
+})();
+</script>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var CIRC = 2 * Math.PI * 128;
+  var root = document.documentElement;
+  var ring = $("ring"), readout = $("readout"), statusEl = $("status");
+  var slider = $("dur"), durVal = $("durVal"), sub = $("sub");
+  var bgIn = $("bgColor"), arcIn = $("arcColor");
+  var bStart = $("bStart"), bPause = $("bPause"), bReset = $("bReset");
+  var DEFAULTS = { dur: 30, bg: "#1d2b6e", arc: "#5b8cff" };
+  var HEX = /^#[0-9a-fA-F]{6}$/;
+
+  function load() {
+    var cfg = { dur: DEFAULTS.dur, bg: DEFAULTS.bg, arc: DEFAULTS.arc };
+    try {
+      var saved = JSON.parse(localStorage.getItem("timer-glass") || "{}");
+      if (saved && typeof saved.dur === "number" && saved.dur >= 5 && saved.dur <= 120) cfg.dur = Math.round(saved.dur / 5) * 5;
+      if (saved && HEX.test(saved.bg || "")) cfg.bg = saved.bg;
+      if (saved && HEX.test(saved.arc || "")) cfg.arc = saved.arc;
+    } catch (e) {}
+    return cfg;
+  }
+  function save() {
+    try { localStorage.setItem("timer-glass", JSON.stringify(cfg)); } catch (e) {}
+  }
+
+  var cfg = load();
+  var total = cfg.dur * 60;
+  var remaining = total * 1000;
+  var endAt = 0, running = false, done = false, timer = null, audio = null, lastText = "";
+
+  /* Culori */
+  function hexToRgb(hex) {
+    return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  }
+  function rgbToHsl(rgb) {
+    var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [h, s * 100, l * 100];
+  }
+  function applyBg(hex) {
+    var rgb = hexToRgb(hex), hsl = rgbToHsl(rgb);
+    var h = hsl[0], s = Math.max(hsl[1], 55);
+    var lum = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+    var lightBg = lum > 0.6;
+    root.style.setProperty("--bg-base", hex);
+    root.style.setProperty("--blob1", "hsl(" + Math.round((h + 50) % 360) + " " + Math.round(s) + "% 58%)");
+    root.style.setProperty("--blob2", "hsl(" + Math.round((h + 310) % 360) + " " + Math.round(s) + "% 55%)");
+    root.style.setProperty("--blob3", "hsl(" + Math.round(h) + " " + Math.round(s) + "% " + Math.round(Math.min(hsl[2] + 28, 86)) + "%)");
+    root.style.setProperty("--fg", lightBg ? "#14202e" : "#ffffff");
+    root.style.setProperty("--fg-dim", lightBg ? "rgba(20, 32, 46, 0.72)" : "rgba(255, 255, 255, 0.74)");
+    root.style.setProperty("--track", lightBg ? "rgba(20, 32, 46, 0.16)" : "rgba(255, 255, 255, 0.2)");
+    root.style.setProperty("--warn", lightBg ? "#c0392b" : "#ff8a7a");
+  }
+  function applyArc(hex) { root.style.setProperty("--arc", hex); }
+
+  /* Afișare */
+  function fmt(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function render() {
+    var sec = Math.max(0, Math.ceil(remaining / 1000));
+    var text = fmt(sec);
+    if (text !== lastText) {
+      lastText = text;
+      var html = "";
+      for (var i = 0; i < text.length; i++) {
+        html += text.charAt(i) === ":" ? '<span class="c">:</span>' : '<span class="d">' + text.charAt(i) + "</span>";
+      }
+      readout.innerHTML = html;
+      readout.classList.toggle("long", text.length > 5);
+    }
+    var frac = total > 0 ? Math.max(0, Math.min(1, remaining / (total * 1000))) : 0;
+    ring.style.strokeDasharray = CIRC;
+    ring.style.strokeDashoffset = CIRC * (1 - frac);
+    ring.style.opacity = frac > 0 ? 1 : 0;
+  }
+  function setStatus(text, warn) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle("warn", !!warn);
+    bStart.classList.toggle("on", running);
+    bPause.classList.toggle("on", !running && !done && remaining < total * 1000 && remaining > 0);
+  }
+
+  /* Sunet la final */
+  function ensureAudio() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) {}
+  }
+  function beep() {
+    if (!audio) return;
+    try {
+      for (var i = 0; i < 3; i++) {
+        var o = audio.createOscillator(), g = audio.createGain();
+        var t0 = audio.currentTime + i * 0.32;
+        o.type = "sine";
+        o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+        o.connect(g);
+        g.connect(audio.destination);
+        o.start(t0);
+        o.stop(t0 + 0.25);
+      }
+    } catch (e) {}
+  }
+
+  /* Logica timerului */
+  function tick() {
+    remaining = endAt - Date.now();
+    if (remaining <= 0) { finish(); return; }
+    render();
+  }
+  function start() {
+    if (running) return;
+    if (done || remaining <= 0) { remaining = total * 1000; done = false; }
+    ensureAudio();
+    endAt = Date.now() + remaining;
+    running = true;
+    timer = setInterval(tick, 200);
+    setStatus(window.LINER_I18N.t("running"));
+    render();
+  }
+  function pause() {
+    if (!running) return;
+    clearInterval(timer);
+    running = false;
+    remaining = Math.max(0, endAt - Date.now());
+    render();
+    setStatus(window.LINER_I18N.t("paused"));
+  }
+  function reset() {
+    clearInterval(timer);
+    running = false;
+    done = false;
+    remaining = total * 1000;
+    render();
+    setStatus(window.LINER_I18N.t("ready"));
+  }
+  function finish() {
+    clearInterval(timer);
+    running = false;
+    done = true;
+    remaining = 0;
+    render();
+    setStatus(window.LINER_I18N.t("finished"), true);
+    beep();
+  }
+
+  function paintSlider() {
+    var min = +slider.min, max = +slider.max, v = +slider.value;
+    slider.style.setProperty("--pct", ((v - min) / (max - min)) * 100 + "%");
+    durVal.textContent = v + " " + window.LINER_I18N.t("minute");
+    sub.textContent = window.LINER_I18N.t("session", {n:v});
+  }
+
+  /* Evenimente */
+  bStart.addEventListener("click", start);
+  bPause.addEventListener("click", pause);
+  bReset.addEventListener("click", reset);
+  slider.addEventListener("input", function () {
+    cfg.dur = +slider.value;
+    total = cfg.dur * 60;
+    paintSlider();
+    reset();
+    save();
+  });
+  bgIn.addEventListener("input", function () { cfg.bg = bgIn.value; applyBg(cfg.bg); save(); });
+  arcIn.addEventListener("input", function () { cfg.arc = arcIn.value; applyArc(cfg.arc); save(); });
+
+  /* Fundal care reacționează la cursor */
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var BLOBS = [
+    { x: 12, y: 8, kx: 26, ky: 20, ease: 0.045, ph: 0 },
+    { x: 92, y: 22, kx: -30, ky: 24, ease: 0.03, ph: 2 },
+    { x: 68, y: 100, kx: 22, ky: -34, ease: 0.02, ph: 4 }
+  ];
+  var pos = BLOBS.map(function (b) { return { x: b.x, y: b.y }; });
+  var ptr = { x: 0.5, y: 0.5 }, glow = { x: 0.5, y: 0.5, a: 0 };
+  var lastMove = -1e9;
+
+  window.addEventListener("pointermove", function (e) {
+    ptr.x = e.clientX / window.innerWidth;
+    ptr.y = e.clientY / window.innerHeight;
+    lastMove = performance.now();
+  }, { passive: true });
+
+  function frame(now) {
+    var sec = now / 1000;
+    for (var i = 0; i < BLOBS.length; i++) {
+      var b = BLOBS[i];
+      var tx = b.x + (ptr.x - 0.5) * b.kx * 2 + Math.sin(sec * 0.25 + b.ph) * 5;
+      var ty = b.y + (ptr.y - 0.5) * b.ky * 2 + Math.cos(sec * 0.21 + b.ph) * 5;
+      pos[i].x += (tx - pos[i].x) * b.ease;
+      pos[i].y += (ty - pos[i].y) * b.ease;
+      root.style.setProperty("--x" + (i + 1), pos[i].x.toFixed(2) + "%");
+      root.style.setProperty("--y" + (i + 1), pos[i].y.toFixed(2) + "%");
+    }
+    glow.x += (ptr.x - glow.x) * 0.14;
+    glow.y += (ptr.y - glow.y) * 0.14;
+    glow.a += ((now - lastMove < 3500 ? 1 : 0) - glow.a) * 0.06;
+    root.style.setProperty("--cx", (glow.x * 100).toFixed(2) + "%");
+    root.style.setProperty("--cy", (glow.y * 100).toFixed(2) + "%");
+    root.style.setProperty("--ga", glow.a.toFixed(3));
+    requestAnimationFrame(frame);
+  }
+  if (!reduce) requestAnimationFrame(frame);
+
+  /* Pornire */
+  slider.value = cfg.dur;
+  bgIn.value = cfg.bg;
+  arcIn.value = cfg.arc;
+  applyBg(cfg.bg);
+  applyArc(cfg.arc);
+  paintSlider();
+  render();
+  setStatus(window.LINER_I18N.t("ready"));
+  document.addEventListener("liner-language-change", function(){ paintSlider(); setStatus(running ? window.LINER_I18N.t("running") : (done ? window.LINER_I18N.t("finished") : (remaining < total * 1000 ? window.LINER_I18N.t("paused") : window.LINER_I18N.t("ready"))), done); });
+})();
+
+  /* Calendar personal
+     Este într-un scope separat deoarece logica timerului de mai sus are propriul IIFE. */
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var calendarGrid = $("calendarGrid");
+  var monthLabel = $("monthLabel");
+  var eventForm = $("eventForm");
+  var eventTitle = $("eventTitle");
+  var eventDate = $("eventDate");
+  var eventType = $("eventType");
+  var eventsForDay = $("eventsForDay");
+  var selectedDateLabel = $("selectedDateLabel");
+  var monthCursor = new Date();
+  monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+  var now = new Date();
+  var selectedDay = dateKey(now);
+  var events = [];
+  function tr(key, vars) { return window.LINER_I18N.t(key, vars); }
+  function monthNames() { return window.LINER_I18N.getLanguage() === "en" ? ["January","February","March","April","May","June","July","August","September","October","November","December"] : ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"]; }
+  function weekdays() { return window.LINER_I18N.getLanguage() === "en" ? ["Mo","Tu","We","Th","Fr","Sa","Su"] : ["Lu","Ma","Mi","Jo","Vi","Sâ","Du"]; }
+  function displayType(type) {
+    var keys = {"Test":"typeTest", "Ascultare":"typeOral", "Temă":"typeHomework", "Proiect":"typeProject", "Altele":"typeOther"};
+    return keys[type] ? tr(keys[type]) : (type || tr("event"));
+  }
+
+  function dateKey(date) {
+    return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+  }
+  function parseDate(key) {
+    var parts = key.split("-").map(Number);
+    return new Date(parts[0], parts[1]-1, parts[2]);
+  }
+  function loadEvents() {
+    try {
+      var saved = JSON.parse(localStorage.getItem("timer-glass-events") || "[]");
+      if (Array.isArray(saved)) events = saved.filter(function(e) {
+        return e && typeof e.id === "string" && typeof e.title === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date);
+      });
+    } catch (e) { events = []; }
+  }
+  function saveEvents() {
+    try { localStorage.setItem("timer-glass-events", JSON.stringify(events)); } catch (e) {}
+  }
+  function renderDayEvents() {
+    var date = parseDate(selectedDay);
+    selectedDateLabel.textContent = window.LINER_I18N.getLanguage() === "en" ? tr("events") + " – " + date.getDate() + " " + monthNames()[date.getMonth()] : tr("events") + " – " + date.getDate() + " " + monthNames()[date.getMonth()].toLowerCase();
+    eventsForDay.textContent = "";
+    var dayEvents = events.filter(function(e) { return e.date === selectedDay; });
+    if (!dayEvents.length) {
+      var empty = document.createElement("p");
+      empty.className = "empty-events";
+      empty.textContent = tr("noEvents");
+      eventsForDay.appendChild(empty);
+      return;
+    }
+    dayEvents.forEach(function(e) {
+      var item = document.createElement("div"); item.className = "event-item";
+      var info = document.createElement("div");
+      var title = document.createElement("strong"); title.textContent = e.title;
+      var meta = document.createElement("small"); meta.textContent = displayType(e.type);
+      info.appendChild(title); info.appendChild(meta);
+      var del = document.createElement("button"); del.type = "button"; del.className = "delete-event"; del.textContent = tr("delete");
+      del.setAttribute("aria-label", tr("delete") + " " + e.title);
+      del.addEventListener("click", function() {
+        events = events.filter(function(item) { return item.id !== e.id; });
+        saveEvents(); renderCalendar();
+      });
+      item.appendChild(info); item.appendChild(del); eventsForDay.appendChild(item);
+    });
+  }
+  function renderCalendar() {
+    monthLabel.textContent = monthNames()[monthCursor.getMonth()] + " " + monthCursor.getFullYear();
+    calendarGrid.textContent = "";
+    weekdays().forEach(function(day) {
+      var label = document.createElement("div"); label.className = "weekday"; label.textContent = day;
+      calendarGrid.appendChild(label);
+    });
+    var first = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(first.getFullYear(), first.getMonth(), 1-offset);
+    for (var i=0; i<42; i++) {
+      var date = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+      var key = dateKey(date);
+      var dayEvents = events.filter(function(e) { return e.date === key; });
+      var btn = document.createElement("button"); btn.type = "button"; btn.className = "day";
+      if (date.getMonth() !== monthCursor.getMonth()) btn.classList.add("outside");
+      if (key === dateKey(new Date())) btn.classList.add("today");
+      if (key === selectedDay) btn.classList.add("selected");
+      btn.setAttribute("aria-label", date.getDate() + " " + monthNames()[date.getMonth()] + (dayEvents.length ? ", " + (dayEvents.length === 1 ? tr("oneEvent") : tr("eventCount", {n:dayEvents.length})) : ""));
+      var number = document.createElement("span"); number.textContent = date.getDate(); btn.appendChild(number);
+      var dots = document.createElement("span"); dots.className = "day-dots";
+      dayEvents.slice(0,3).forEach(function() { var dot = document.createElement("i"); dots.appendChild(dot); });
+      btn.appendChild(dots);
+      btn.addEventListener("click", function(k) { return function() { selectedDay = k; eventDate.value = k; renderCalendar(); }; }(key));
+      calendarGrid.appendChild(btn);
+    }
+    renderDayEvents();
+  }
+  $("prevMonth").addEventListener("click", function() {
+    monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth()-1, 1); renderCalendar();
+  });
+  $("nextMonth").addEventListener("click", function() {
+    monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth()+1, 1); renderCalendar();
+  });
+  eventForm.addEventListener("submit", function(e) {
+    e.preventDefault();
+    var title = eventTitle.value.trim();
+    var date = eventDate.value;
+    if (!title || !date) return;
+    events.push({ id: String(Date.now()) + Math.random().toString(16).slice(2), title: title, date: date, type: eventType.value });
+    selectedDay = date;
+    var chosen = parseDate(date);
+    monthCursor = new Date(chosen.getFullYear(), chosen.getMonth(), 1);
+    saveEvents();
+    eventTitle.value = "";
+    renderCalendar();
+  });
+  loadEvents();
+  eventDate.value = selectedDay;
+  renderCalendar();
+  document.addEventListener("liner-language-change", renderCalendar);
+})();
+
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var overlay = document.getElementById('onboardingOverlay');
+  if (!overlay) return;
+
+  var copy = {
+    ro: {
+      counter:['01 / 03','02 / 03','03 / 03'],
+      kickerName:'PASUL 02 · NUME', nameTitle:'Începem cu numele tău.',
+      nameDesc:'Cum ai vrea să-ți spunem? Vom folosi numele tău pentru un mic mesaj de bun venit.',
+      namePlaceholder:'Numele tău', nameAria:'Numele tău', nameError:'Scrie un nume ca să continuăm.',
+      kickerLanguage:'PASUL 01 · LIMBĂ', languageTitle:'În ce limbă preferi LINER?',
+      languageDesc:'Poți schimba limba oricând și din setările aplicației.',
+      kickerAge:'PASUL 03 · DESPRE TINE', ageTitle:'Câți ani ai?', ageDesc:'Doar ca să-ți configurăm un spațiu de studiu potrivit.',
+      years:'ani', agePlaceholder:'15', ageAria:'Vârsta ta', ageError:'Introdu o vârstă validă, între 5 și 100 de ani.',
+      privacy:'Vârsta și numele rămân salvate local pe acest dispozitiv.',
+      back:'Înapoi', continue:'Continuă', start:'Începe cu LINER', chooseLanguage:'Alege limba',
+      languageNames:{ro:'Română',en:'Engleză'}
+    },
+    en: {
+      counter:['01 / 03','02 / 03','03 / 03'],
+      kickerName:'STEP 02 · NAME', nameTitle:"Let's start with your name.",
+      nameDesc:'What should we call you? We will use your name for a small welcome message.',
+      namePlaceholder:'Your name', nameAria:'Your name', nameError:'Enter your name to continue.',
+      kickerLanguage:'STEP 01 · LANGUAGE', languageTitle:'Which language do you prefer?',
+      languageDesc:'You can change the language later in the app.',
+      kickerAge:'STEP 03 · ABOUT YOU', ageTitle:'How old are you?', ageDesc:'Just to make your study space feel a little more personal.',
+      years:'years', agePlaceholder:'15', ageAria:'Your age', ageError:'Enter a valid age between 5 and 100.',
+      privacy:'Your name and age are stored locally on this device.',
+      back:'Back', continue:'Continue', start:'Start using LINER', chooseLanguage:'Choose language',
+      languageNames:{ro:'Romanian',en:'English'}
+    }
+  };
+
+  var nameInput = document.getElementById('onboardingName');
+  var ageInput = document.getElementById('onboardingAge');
+  var nextButton = document.getElementById('onboardingNext');
+  var backButton = document.getElementById('onboardingBack');
+  var progress = document.getElementById('onboardingProgress');
+  var counter = document.getElementById('onboardingCounter');
+  var steps = Array.prototype.slice.call(overlay.querySelectorAll('[data-onboarding-step]'));
+  var language = (window.LINER_I18N && window.LINER_I18N.getLanguage()) || 'ro';
+  var step = 0;
+
+  function renderGreeting(profile) {
+    var greeting = document.getElementById('profileGreeting');
+    if (!greeting || !profile || !profile.name) return;
+    greeting.textContent = (profile.language === 'en' ? 'Welcome back, ' : 'Bun venit, ') + profile.name + '!';
+    greeting.hidden = false;
+  }
+
+  function setText(selector, value) {
+    var el = overlay.querySelector('[data-ob="' + selector + '"]');
+    if (el) el.textContent = value;
+  }
+  function updateLanguageUI() {
+    var c = copy[language];
+    setText('kickerName', c.kickerName); setText('nameTitle', c.nameTitle); setText('nameDesc', c.nameDesc);
+    nameInput.placeholder = c.namePlaceholder; nameInput.setAttribute('aria-label', c.nameAria);
+    setText('kickerLanguage', c.kickerLanguage); setText('languageTitle', c.languageTitle); setText('languageDesc', c.languageDesc);
+    setText('kickerAge', c.kickerAge); setText('ageTitle', c.ageTitle); setText('ageDesc', c.ageDesc);
+    setText('years', c.years); ageInput.placeholder = c.agePlaceholder; ageInput.setAttribute('aria-label', c.ageAria);
+    setText('privacy', c.privacy); setText('back', c.back);
+    nextButton.innerHTML = step === 2 ? c.start : c.continue + ' <span aria-hidden="true">→</span>';
+    overlay.querySelector('.onboarding-language-options').setAttribute('aria-label', c.chooseLanguage);
+    counter.textContent = c.counter[step];
+    document.getElementById('onboardingNameError').textContent = '';
+    document.getElementById('onboardingAgeError').textContent = '';
+  }
+  function selectLanguage(next) {
+    language = next === 'en' ? 'en' : 'ro';
+    if (window.LINER_I18N) window.LINER_I18N.setLanguage(language);
+    overlay.querySelectorAll('[data-language-choice]').forEach(function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute('data-language-choice') === language ? 'true' : 'false');
+    });
+    updateLanguageUI();
+  }
+  function showStep(nextStep, direction) {
+    step = Math.max(0, Math.min(2, nextStep));
+    steps.forEach(function (section, index) {
+      section.classList.remove('is-active', 'is-entering');
+      section.setAttribute('aria-hidden', index === step ? 'false' : 'true');
+    });
+    var active = steps[step];
+    active.classList.add('is-active');
+    // Force a style boundary so the entry animation restarts on every step.
+    void active.offsetWidth;
+    active.classList.add('is-entering');
+    progress.style.width = ((step + 1) / 3 * 100) + '%';
+    backButton.hidden = step === 0;
+    nextButton.innerHTML = step === 2 ? copy[language].start : copy[language].continue + ' <span aria-hidden="true">→</span>';
+    counter.textContent = copy[language].counter[step];
+    if (step === 1) window.setTimeout(function(){ nameInput.focus(); }, 120);
+    else if (step === 2) window.setTimeout(function(){ ageInput.focus(); }, 120);
+  }
+  function completeSetup() {
+    var name = nameInput.value.trim();
+    var age = Number(ageInput.value);
+    if (!Number.isInteger(age) || age < 5 || age > 100) {
+      document.getElementById('onboardingAgeError').textContent = copy[language].ageError;
+      ageInput.focus(); return;
+    }
+    var profile = { name:name, age:age, language:language, completedAt:new Date().toISOString() };
+    try {
+      localStorage.setItem('liner-profile', JSON.stringify(profile));
+      localStorage.setItem('liner-onboarding-complete', 'true');
+      localStorage.setItem('liner-language', language);
+    } catch (error) {
+      // Keep the current session usable even if local storage is unavailable.
+      console.warn('LINER could not persist onboarding preferences.', error);
+    }
+    overlay.classList.add('is-leaving');
+    document.documentElement.classList.remove('onboarding-open');
+    window.setTimeout(function () {
+      overlay.hidden = true;
+      overlay.setAttribute('aria-hidden', 'true');
+    }, 520);
+    renderGreeting(profile);
+    document.dispatchEvent(new CustomEvent('liner-onboarding-complete', {detail:profile}));
+  }
+
+  // Existing installs skip the welcome flow; first launch displays it once.
+  var complete = false;
+  try { complete = localStorage.getItem('liner-onboarding-complete') === 'true'; } catch (_) {}
+  if (complete) {
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    try { renderGreeting(JSON.parse(localStorage.getItem('liner-profile') || 'null')); } catch (_) {}
+    return;
+  }
+
+  document.documentElement.classList.add('onboarding-open');
+  overlay.hidden = false;
+  overlay.setAttribute('aria-hidden', 'false');
+  updateLanguageUI();
+  overlay.querySelectorAll('[data-language-choice]').forEach(function (button) {
+    button.addEventListener('click', function () { selectLanguage(button.getAttribute('data-language-choice')); });
+  });
+  nextButton.addEventListener('click', function () {
+    if (step === 0) {
+      // Language is selected first so the rest of the welcome flow is localized.
+      showStep(1, 1);
+    } else if (step === 1) {
+      if (!nameInput.value.trim()) {
+        document.getElementById('onboardingNameError').textContent = copy[language].nameError;
+        nameInput.focus(); return;
+      }
+      showStep(2, 1);
+    } else {
+      completeSetup();
+    }
+  });
+  backButton.addEventListener('click', function () { showStep(step - 1, -1); });
+  nameInput.addEventListener('keydown', function (event) { if (event.key === 'Enter') nextButton.click(); });
+  ageInput.addEventListener('keydown', function (event) { if (event.key === 'Enter') nextButton.click(); });
+  selectLanguage(language);
+  showStep(0, 1);
+})();
+</script>
+
+</body>
+</html>
